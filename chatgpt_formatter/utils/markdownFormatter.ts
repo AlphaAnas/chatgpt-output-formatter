@@ -1,32 +1,35 @@
 /**
  * Applies formatting rules (fonts, sizes, alignment) to already-cleaned
  * markdown/HTML content, producing final styled HTML ready for insertion
- * into Word/Docs. Rules are driven by a template config so styling isn't
- * hardcoded — matches templates.ts from the plan.
+ * into Word/Docs.
  */
 
 export interface FormatTemplate {
   headingFont: string;
-  headingSize: string;   // e.g. "14px"
+  headingSize: string;   // e.g. "14pt"
   headingBold: boolean;
   headingAlign: "left" | "center" | "right" | "justify";
+  headingSpaceAfter: string; // e.g. "12pt"
   bodyFont: string;
-  bodySize: string;      // e.g. "12px"
+  bodySize: string;      // e.g. "12pt"
   bodyAlign: "left" | "center" | "right" | "justify";
+  bodySpaceAfter: string;    // e.g. "6pt"
   listFont: string;
   listSize: string;
 }
 
 export const defaultTemplate: FormatTemplate = {
   headingFont: "Times New Roman",
-  headingSize: "14px",
+  headingSize: "14pt",
   headingBold: true,
-  headingAlign: "left",
+  headingAlign: "center",
+  headingSpaceAfter: "12pt",
   bodyFont: "Times New Roman",
-  bodySize: "12px",
+  bodySize: "12pt",
   bodyAlign: "justify",
+  bodySpaceAfter: "6pt",
   listFont: "Times New Roman",
-  listSize: "12px",
+  listSize: "12pt",
 };
 
 function styleString(entries: Record<string, string>): string {
@@ -37,44 +40,47 @@ function styleString(entries: Record<string, string>): string {
 
 function headingStyle(t: FormatTemplate): string {
   return styleString({
-    "font-family": t.headingFont,
+    "font-family": `'${t.headingFont}', serif`,
     "font-size": t.headingSize,
     "text-align": t.headingAlign,
     "font-weight": t.headingBold ? "bold" : "normal",
-    "color": "#000000",  // Fixed from "font-color" to valid CSS "color"
+    "color": "#000000",
+    "margin-top": "12pt",
+    "margin-bottom": t.headingSpaceAfter,
   });
 }
 
 function paragraphStyle(t: FormatTemplate): string {
   return styleString({
-    "font-family": t.bodyFont,
+    "font-family": `'${t.bodyFont}', serif`,
     "font-size": t.bodySize,
     "text-align": t.bodyAlign,
-    "color": "#000000",  // Fixed from "font-color" to valid CSS "color"
+    "color": "#000000",
+    "margin-top": "0pt",
+    "margin-bottom": t.bodySpaceAfter,
+    "line-height": "1.15",
   });
 }
 
 function listItemStyle(t: FormatTemplate): string {
   return styleString({
-    "font-family": t.listFont,
+    "font-family": `'${t.listFont}', serif`,
     "font-size": t.listSize,
+    "margin-bottom": "3pt",
+    "text-align": "justify",
   });
 }
-
-// --- inline formatting (bold / italic / inline code / links / strikethrough) ---
 
 function formatInline(text: string): string {
   let result = text;
   result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   result = result.replace(/(?<!\*)\*(?!\*)(.+?)\*(?!\*)/g, "<em>$1</em>");
-  result = result.replace(/~~(.+?)~~/g, "<del>$1</del>"); // Added strikethrough (double tilde)
-  result = result.replace(/~(.+?)~/g, "<del>$1</del>");     // Added strikethrough (single tilde)
+  result = result.replace(/~~(.+?)~~/g, "<del>$1</del>");
+  result = result.replace(/~(.+?)~/g, "<del>$1</del>");
   result = result.replace(/`([^`]+?)`/g, "<code>$1</code>");
   result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
   return result;
 }
-
-// --- block detection ---
 
 function matchHeading(line: string): { level: number; text: string } | null {
   const m = line.match(/^(#{1,6})\s+(.+)$/);
@@ -105,14 +111,17 @@ function isSkippable(line: string): boolean {
   return t === "" || /^(?:```|---)/.test(t);
 }
 
-// --- main block-based formatter (handles multi-line lists properly) ---
-
 export async function formatContentHTML(
   content: string,
   template: FormatTemplate = defaultTemplate
 ): Promise<string> {
   try {
-    const lines = content.split(/\r?\n/); // Safely handle both Windows and Unix line endings
+    // Pre-clean input formatting
+    const cleaned = content
+      .replace(/(?<!\n)(#{1,6}\s+)/g, "\n$1")
+      .replace(/(?<!\n)(\d+\.\s+)/g, "\n$1");
+
+    const lines = cleaned.split(/\r?\n/);
     const out: string[] = [];
 
     let listBuffer: { type: "ul" | "ol"; items: string[] } | null = null;
@@ -124,7 +133,7 @@ export async function formatContentHTML(
       const items = listBuffer.items
         .map((item) => `<li style="${style}">${formatInline(item)}</li>`)
         .join("");
-      out.push(`<${tag}>${items}</${tag}>`);
+      out.push(`<${tag} style="margin-bottom: ${template.bodySpaceAfter}; padding-left: 20pt;">${items}</${tag}>`);
       listBuffer = null;
     };
 
@@ -145,9 +154,11 @@ export async function formatContentHTML(
       const heading = matchHeading(line);
       if (heading) {
         flushList();
-        const style = headingStyle(template);
+        const blockStyle = headingStyle(template);
         const text = formatInline(heading.text);
-        out.push(`<h${heading.level} style="${style}">${text}</h${heading.level}>`);
+        const spanStyle = `font-family: '${template.headingFont}', serif; font-size: ${template.headingSize}; font-weight: ${template.headingBold ? "bold" : "normal"};`;
+        
+        out.push(`<h${heading.level} style="${blockStyle}"><span style="${spanStyle}">${text}</span></h${heading.level}>`);
         continue;
       }
 
@@ -171,11 +182,14 @@ export async function formatContentHTML(
         continue;
       }
 
-      // plain paragraph
+      // Plain paragraph
       flushList();
       if (isBlank(line)) continue;
-      const style = paragraphStyle(template);
-      out.push(`<p style="${style}">${formatInline(line)}</p>`);
+      const blockStyle = paragraphStyle(template);
+      const text = formatInline(line);
+      const spanStyle = `font-family: '${template.bodyFont}', serif; font-size: ${template.bodySize};`;
+      
+      out.push(`<p style="${blockStyle}"><span style="${spanStyle}">${text}</span></p>`);
     }
 
     flushList();

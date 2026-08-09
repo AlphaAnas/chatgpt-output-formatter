@@ -31,17 +31,35 @@ export async function grabText(): Promise<string> {
   }
   return grabbed;
 }
+export async function clearDocument(): Promise<void> {
+  try {
+    await Word.run(async (context) => {
+      const body = context.document.body;
+      
+      // Clear all content and formatting from the body
+      body.clear();
+      
+      await context.sync();
+    });
+  } catch (error) {
+    console.log("Error clearing document: " + error);
+  }
+}
 
 export async function formatText(): Promise<string> {
   let formatted = "";
   const grabbedText = await grabText();
-  
+  console.log("Grabbed text for formatting:", grabbedText);
   // Await the formatter if it's asynchronous (remove 'await' if formatContentHTML is synchronous)
   formatted = await formatContentHTML(grabbedText);
+
+  if (formatted){
+    //remove the text on screen
+    await clearDocument();
+  }
   
   // Added 'await' here so insertion completes properly
   await insertText(formatted);
   
-  console.log("Formatted text:", formatted);
   return formatted;
 }
