@@ -30,9 +30,13 @@
     "@fluentui/react-icons": "^2.0.264",
     "core-js": "^3.36.0",
     "es6-promise": "^4.2.8",
+    "mdast": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "regenerator-runtime": "^0.14.1"
+    "regenerator-runtime": "^0.14.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
