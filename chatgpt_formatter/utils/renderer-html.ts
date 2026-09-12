@@ -1,49 +1,61 @@
 import type { Block } from "./ir";
 import type { FormatTemplate } from "./templates";
 
-function headingStyle(_template: FormatTemplate): string {
-  // TODO: Port heading style logic from the old formatter.
-  return "";
+function styleString(entries: Record<string, string>): string {
+  return Object.entries(entries).map(([k, v]) => `${k}:${v}`).join("; ");
 }
 
-function paragraphStyle(_template: FormatTemplate): string {
-  // TODO: Port paragraph style logic from the old formatter.
-  return "";
+function headingStyle(t: FormatTemplate): string {
+  return styleString({
+    "font-family": `'${t.headingFont}', serif`,
+    "font-size": t.headingSize,
+    "text-align": t.headingAlign,
+    "font-weight": t.headingBold ? "bold" : "normal",
+    "margin-bottom": t.headingSpaceAfter,
+  });
 }
 
-function listItemStyle(_template: FormatTemplate): string {
-  // TODO: Port list item style logic from the old formatter.
-  return "";
+function paragraphStyle(t: FormatTemplate): string {
+  return styleString({
+    "font-family": `'${t.bodyFont}', serif`,
+    "font-size": t.bodySize,
+    "text-align": t.bodyAlign,
+    "margin-bottom": t.bodySpaceAfter,
+    "line-height": "1.15",
+  });
 }
 
-/**
- * Renders intermediate blocks as HTML suitable for Word's insertHtml API.
- */
+function listItemStyle(t: FormatTemplate): string {
+  return styleString({
+    "font-family": `'${t.listFont}', serif`,
+    "font-size": t.listSize,
+    "margin-bottom": "3pt",
+  });
+}
+
 export function renderHTML(blocks: Block[], template: FormatTemplate): string {
-  return blocks
-    .map((block) => {
-      switch (block.type) {
-        case "heading":
-          // TODO: Render <h{level}> with inline styles from the template.
-          return `<h${block.level} style="${headingStyle(template)}">${block.text}</h${block.level}>`;
-        case "paragraph":
-          // TODO: Render a styled <p> and escape or format inline text.
-          return `<p style="${paragraphStyle(template)}">${block.text}</p>`;
-        case "list": {
-          // TODO: Render <ul>/<ol> with styled <li> elements.
-          const tag = block.ordered ? "ol" : "ul";
-          const items = block.items
-            .map((item) => `<li style="${listItemStyle(template)}">${item}</li>`)
-            .join("");
-          return `<${tag}>${items}</${tag}>`;
-        }
-        case "table":
-          // TODO: Render a styled <table>, header row, and data rows.
-          return "<table></table>";
-        case "raw_html":
-          // TODO: Pass through only raw HTML that is safe and supported by Word.
-          return block.html;
-      }
-    })
-    .join("\n");
+  const out: string[] = [];
+
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      out.push(`<h${block.level} style="${headingStyle(template)}">${block.text}</h${block.level}>`);
+    } else if (block.type === "paragraph") {
+      out.push(`<p style="${paragraphStyle(template)}">${block.text}</p>`);
+    } else if (block.type === "list") {
+      const tag = block.ordered ? "ol" : "ul";
+      const style = listItemStyle(template);
+      const items = block.items.map((i) => `<li style="${style}">${i}</li>`).join("");
+      out.push(`<${tag} style="padding-left: 20pt;">${items}</${tag}>`);
+    } else if (block.type === "table") {
+      const head = `<tr>${block.headers.map((h) => `<th>${h}</th>`).join("")}</tr>`;
+      const rows = block.rows
+        .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`)
+        .join("");
+      out.push(`<table border="1" style="border-collapse:collapse;">${head}${rows}</table>`);
+    } else if (block.type === "raw_html") {
+      out.push(block.html);
+    }
+  }
+
+  return out.join("\n");
 }

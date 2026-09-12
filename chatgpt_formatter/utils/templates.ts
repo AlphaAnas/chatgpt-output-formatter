@@ -1,3 +1,6 @@
+import type { Block } from "./ir";
+import { renderHTML } from "./renderer-html";
+
 export interface FormatTemplate {
   headingFont: string;
   headingSize: string;
@@ -12,7 +15,7 @@ export interface FormatTemplate {
   listSize: string;
 }
 
-export const defaultTemplate: FormatTemplate = {
+const defaultConfig: FormatTemplate = {
   headingFont: "Times New Roman",
   headingSize: "14pt",
   headingBold: true,
@@ -26,4 +29,9 @@ export const defaultTemplate: FormatTemplate = {
   listSize: "12pt",
 };
 
-// TODO: Add lawyerTemplate, hrTemplate, etc. here later — same shape, different values.
+// main.ts calls templates.defaultTemplate(blocks) - so this is a function, not a config.
+export function defaultTemplate(blocks: Block[]): string {
+  return renderHTML(blocks, defaultConfig);
+}
+
+// TODO: lawyerTemplate(blocks), hrTemplate(blocks) - same shape, different config object.

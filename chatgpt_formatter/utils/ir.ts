@@ -1,5 +1,4 @@
-import type { Content, Root } from "mdast";
-import { visit } from "unist-util-visit";
+import type { Root } from "mdast";
 
 export type Block =
   | { type: "heading"; level: number; text: string }
@@ -8,71 +7,56 @@ export type Block =
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "raw_html"; html: string };
 
-function flattenText(node: Content): string {
-  if ("value" in node) {
-    return node.value;
-  }
-
-  if ("children" in node) {
-    return node.children.map((child) => flattenText(child as Content)).join("");
-  }
-
+function flattenText(node: any): string {
+  if (node.value !== undefined) return node.value;
+  if (node.children) return node.children.map(flattenText).join("");
   return "";
 }
 
 /**
- * Converts mdast blocks to the small intermediate representation used by the
- * renderer. Inline marks are flattened to plain text until inline spans exist.
+ * Walks top-level mdast children in document order (not a deep visit) -
+ * this is what keeps headings/paragraphs/lists in the order they appeared.
  */
 export function toIR(ast: Root): Block[] {
   const blocks: Block[] = [];
 
-  visit(ast, (node) => {
+  for (const node of ast.children as any[]) {
     switch (node.type) {
       case "heading":
-        // TODO: Map heading depth and flattened inline children to a heading block.
-        blocks.push({
-          type: "heading",
-          level: node.depth,
-          text: node.children.map((child) => flattenText(child)).join(""),
-        });
+        blocks.push({ type: "heading", level: node.depth, text: flattenText(node) });
         break;
+
       case "paragraph":
-        // TODO: Map paragraph children; preserve bold/italic/code/link as spans later.
-        blocks.push({
-          type: "paragraph",
-          text: node.children.map((child) => flattenText(child)).join(""),
-        });
+        blocks.push({ type: "paragraph", text: flattenText(node) });
         break;
+
       case "list":
-        // TODO: Map listItem children into item strings, including nested lists later.
         blocks.push({
           type: "list",
           ordered: Boolean(node.ordered),
-          items: node.children.map((item) =>
-            item.children.map((child) => flattenText(child)).join("")
-          ),
+          items: node.children.map((item: any) => flattenText(item)),
         });
         break;
-      case "listItem":
-        // TODO: Handle listItem-specific nesting and block content during list mapping.
-        break;
-      case "table":
-        // TODO: Map table rows and cells once table parsing is enabled/configured.
+
+      case "table": {
+        const [headerRow, ...bodyRows] = node.children;
         blocks.push({
           type: "table",
-          headers: [],
-          rows: [],
+          headers: headerRow.children.map((cell: any) => flattenText(cell)),
+          rows: bodyRows.map((row: any) => row.children.map((cell: any) => flattenText(cell))),
         });
         break;
+      }
+
       case "html":
-        // TODO: Decide which raw HTML is safe to pass through to Word.
         blocks.push({ type: "raw_html", html: node.value });
         break;
+
       default:
+        // TODO: blockquote, code fences, thematic breaks, etc. as needed
         break;
     }
-  });
+  }
 
   return blocks;
 }
