@@ -1,0 +1,19 @@
+{
+  "name": "chatgpt-formatter-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:lib && npm run build:app",
+    "build:lib": "npm --prefix ./chatgpt_formatter_lib run build",
+    "build:app": "tsc",
+    "start": "node dist/main.js",
+    "dev": "npm run build && npm start"
+  },
+  "dependencies": {
+    "chatgpt-output-formatter": "file:./chatgpt_formatter_lib"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.4.0"
+  }
+}
