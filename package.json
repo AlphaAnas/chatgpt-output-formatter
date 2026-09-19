@@ -10,10 +10,15 @@
     "dev": "npm run build && npm start"
   },
   "dependencies": {
-    "chatgpt-output-formatter": "file:./chatgpt_formatter_lib"
+    "chatgpt-output-formatter": "file:./chatgpt_formatter_lib",
+    "office-js": "^0.1.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "@types/office-js": "^1.0.609",
     "typescript": "^5.4.0"
   }
 }

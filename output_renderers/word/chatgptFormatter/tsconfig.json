@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
+    "paths": {
+      "chatgpt_formatter_lib/*": ["../../../chatgpt_formatter_lib/*"]
+    },
+    "noImplicitReturns": true,
+    "noUnusedParameters": true,
+    "outDir": "dist",
+    "rootDir": "../../../",
+    "sourceMap": true,
+    "target": "es6",
+    "lib": [
+      "es7",
+      "dom"
+    ],
+  },
+  "exclude": [
+    "node_modules"
+  ],
+  "ts-node": { 
+    "compilerOptions": {
+      "module": "commonjs"
+    },
+    "files": true 
+  }
+}

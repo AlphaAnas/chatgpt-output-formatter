@@ -12,7 +12,9 @@ export function processContent(content: string) {
             const cleanedText = normalize(content);
             if (cleanedText) {
               const formattedText = parseMarkdown(cleanedText);
+              // console.log(JSON.stringify(formattedText, null, 2)); // <- add this line
               blocks_ir = toIR(formattedText);
+              console.log(JSON.stringify(blocks_ir, null, 2)); // <- add this line
             }
             
           }
