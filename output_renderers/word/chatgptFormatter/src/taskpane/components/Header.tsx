@@ -1,37 +1,84 @@
 import * as React from "react";
-import { Image, tokens, makeStyles } from "@fluentui/react-components";
+import { Image, Text, tokens, makeStyles } from "@fluentui/react-components";
 
 export interface HeaderProps {
   title: string;
-  logo: string;
+  logo?: string;
   message: string;
 }
 
 const useStyles = makeStyles({
-  welcome__header: {
+  header: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "14px 18px",
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+
+  logo: {
+    width: "36px",
+    height: "36px",
+    objectFit: "contain",
+  },
+
+  logoPlaceholder: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "6px",
+    backgroundColor: tokens.colorNeutralBackground3,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: tokens.colorNeutralForeground3,
+    fontSize: "11px",
+  },
+
+  content: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    paddingBottom: "30px",
-    paddingTop: "100px",
-    backgroundColor: tokens.colorNeutralBackground3,
+    gap: "2px",
   },
+
+  title: {
+    fontSize: "15px",
+    fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorNeutralForeground1,
+  },
+
   message: {
-    fontSize: tokens.fontSizeHero900,
-    fontWeight: tokens.fontWeightRegular,
-    fontColor: tokens.colorNeutralBackgroundStatic,
+    fontSize: "12px",
+    color: tokens.colorNeutralForeground3,
   },
 });
 
-const Header: React.FC<HeaderProps> = (props: HeaderProps) => {
-  const { title, logo, message } = props;
+const Header: React.FC<HeaderProps> = ({
+  title,
+  logo,
+  message,
+}) => {
   const styles = useStyles();
 
   return (
-    <section className={styles.welcome__header}>
-      <Image width="90" height="90" src={logo} alt={title} />
-      <h1 className={styles.message}>{message}</h1>
-    </section>
+    <header className={styles.header}>
+      {logo ? (
+        <Image
+          className={styles.logo}
+          src={logo}
+          alt={title}
+        />
+      ) : (
+        <div className={styles.logoPlaceholder}>
+          Logo
+        </div>
+      )}
+
+      <div className={styles.content}>
+        <Text className={styles.title}>{title}</Text>
+        <Text className={styles.message}>{message}</Text>
+      </div>
+    </header>
   );
 };
 
