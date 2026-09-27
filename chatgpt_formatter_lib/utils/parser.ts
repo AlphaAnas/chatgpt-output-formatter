@@ -1,3 +1,9 @@
+/**
+ * Parses a markdown string into an AST (Abstract Syntax Tree) using remark.
+ *
+ */
+
+
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm"; // required for tables, strikethrough, task lists

@@ -13,7 +13,7 @@
     "sourceMap": true,
     "removeComments": false,
     "pretty": true,
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "typeRoots": ["node_modules/@types"],
     "skipLibCheck": true
   },
