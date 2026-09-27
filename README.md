@@ -1,168 +1,77 @@
-AI, by default, generates text in markdown. Students, professionals, lawyers, and people pasting raw content into MS Word, Google Docs, emails, and other applications may also encounter additional content such as separator lines, em dashes, and other formatting artifacts that they have to manually remove.
+# ChatGPT Formatter Word Add-in
 
-This utility takes markdown input, formats it correctly, removes em dashes and other content that may resemble AI-generated text, and can return a formatted DOCX output file.
+AI tools commonly generate Markdown, em dashes, separator lines, and other formatting artifacts. This utility cleans AI-generated output and formats it for use in Microsoft Word, Google Docs, emails, and other applications.
 
-This utility is part of a bigger project for an AI chatbot designed for professionals.
+It accepts Markdown or raw text and applies a consistent document template. The Word add-in lets you format selected text directly inside Word.
 
-## How to Run the Formatter Library
+The formatter is part of a larger AI chatbot project for professionals.
 
-```bash
-cd .\chatgpt_formatter
-npm run build
-node dist/main.js
-```
+The default template uses:
 
-## How to Build and Run the Microsoft Word Add-in
+- Headings: 16pt, bold, centered
+- Paragraphs: 14pt, justified
+- Font: Times New Roman
 
-The project also includes a Microsoft Word Office Add-in that allows users to format AI-generated content directly inside Word.
+## Install
 
-### 1. Go to the Word Add-in
-
-From the project root, navigate to the Word add-in directory:
+From the project root:
 
 ```powershell
 cd .\output_renderers\word\chatgptFormatter
-```
-
-### 2. Install dependencies
-
-If this is your first time running the project:
-
-```powershell
 npm install
 ```
 
-### 3. Build the project
+## FOR MS WORD OUTPUT:
+```bash
+cd .\output_renderers\word\chatgptFormatter
+```
 
-To create a production build:
+### Run the local server
 
 ```powershell
-npm run build
+npm run dev-server
 ```
 
-### 4. Start the development server
-
-For local development and testing:
-
-```powershell
-npm start
-```
-
-This starts the local development server, normally at:
-
-```text
-https://localhost:3000
-```
-
-The Office Add-in manifest points Word to:
+The add-in is served at:
 
 ```text
 https://localhost:3000/taskpane.html
 ```
 
-Keep this terminal running while testing the add-in.
+Keep this terminal running while testing.
 
-### 5. Test in Microsoft Word Online
+### Run in Word Online
 
-To test the add-in in **Word Online**:
+Use a Word Online document URL that you can edit:
 
-1. Keep the development server running with:
-
-   ```powershell
-   npm start
-   ```
-
-2. Open **Microsoft Word Online** through Microsoft 365 in your browser.
-
-3. Open an existing document or create a new Word document.
-
-4. Open the **Add-ins** menu.
-
-5. Choose the option for managing or uploading your own add-in, such as **My Add-ins** or **Upload My Add-in**, depending on the Microsoft 365 interface.
-
-6. Upload the project's:
-
-   ```text
-   manifest.xml
-   ```
-
-7. After the add-in is installed, open it from the Word **Add-ins** menu.
-
-8. The add-in's task pane should load from:
-
-   ```text
-   https://localhost:3000/taskpane.html
-   ```
-
-### 6. Test the formatting workflow
-
-Once the add-in is open:
-
-1. Paste ChatGPT or Claude generated content directly into the Word document.
-2. Select the text you want to clean and format.
-3. Open the **ChatGPT Formatter** task pane.
-4. Click **Clean & Format**.
-5. The selected text will be formatted and replaced in the same location.
-
-If no text is selected, the add-in formats the entire document.
-
-### 7. Debugging
-
-The add-in uses `console.log()` for debugging.
-
-When testing in Word Online, open the browser developer tools:
-
-```text
-F12
+```powershell
+npx office-addin-debugging start manifest.xml web --app word --document "YOUR_WORD_ONLINE_DOCUMENT_URL"
 ```
 
-or:
+For example:
 
-```text
-Ctrl + Shift + I
+```powershell
+npx office-addin-debugging start manifest.xml web --app word --document "https://your-tenant.sharepoint.com/:w:/r/personal/..."
 ```
 
-Then open the **Console** tab.
+This starts the development server, sideloads the add-in into the document, and opens Word Online. Sign in to Microsoft 365 if prompted.
 
-You can see logs such as:
+Open the add-in from Word Online, paste or select Markdown/raw text, and click **Clean & Format**.
 
-```text
-Getting input from Word...
-Text received: ...
-Has selection: true
-Formatted HTML: ...
-Inserting HTML into the document...
-Formatting complete.
+### Run in Word Desktop
+
+Close any existing debugging session, then run:
+
+```powershell
+npx office-addin-debugging start manifest.xml desktop --app word
 ```
 
-Errors will appear using `console.error()`.
+This opens desktop Word and sideloads the add-in automatically.
 
-### 8. Stop the development server
+### Stop debugging
 
-When finished testing, return to the terminal running `npm start` and press:
-
-```text
-Ctrl + C
+```powershell
+npx office-addin-debugging stop manifest.xml
 ```
 
-## Project Workflow
-
-The overall workflow is:
-
-```text
-ChatGPT / Claude
-        ↓
-Markdown / Raw AI Output
-        ↓
-Microsoft Word
-        ↓
-Select Text
-        ↓
-ChatGPT Formatter Add-in
-        ↓
-Clean + Format
-        ↓
-Formatted Word Content
-```
-
-The formatter can be used as part of the larger AI chatbot system for professionals, while the Microsoft Word add-in provides a direct way to clean and format AI-generated content inside Word.
+Browser developer tools can be opened with `F12` or `Ctrl+Shift+I`. Use the **Console** tab to see formatter logs.

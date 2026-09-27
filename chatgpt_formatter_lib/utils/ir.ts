@@ -2,6 +2,7 @@ import type { Root } from "mdast";
 
 export type Block =
   | { type: "heading"; level: number; text: string }
+  | { type: "subheading"; text: string }
   | { type: "paragraph"; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "table"; headers: string[]; rows: string[][] }
@@ -11,6 +12,21 @@ function flattenText(node: any): string {
   if (node.value !== undefined) return node.value;
   if (node.children) return node.children.map(flattenText).join("");
   return "";
+}
+
+/**
+ * A paragraph whose ENTIRE content is a single bold run (e.g. "**Prayer**")
+ * acts like a section title rather than body text. If it ends in ":" it's
+ * a field label ("**To:**", "**Date:**") that stays inline with what
+ * follows it, so only the colon-less case is treated as a subheading.
+ */
+function isSectionTitleParagraph(node: any, text: string): boolean {
+  return (
+    node.children &&
+    node.children.length === 1 &&
+    node.children[0].type === "strong" &&
+    !text.trim().endsWith(":")
+  );
 }
 
 /**
@@ -26,9 +42,15 @@ export function toIR(ast: Root): Block[] {
         blocks.push({ type: "heading", level: node.depth, text: flattenText(node) });
         break;
 
-      case "paragraph":
-        blocks.push({ type: "paragraph", text: flattenText(node) });
+      case "paragraph": {
+        const text = flattenText(node);
+        if (isSectionTitleParagraph(node, text)) {
+          blocks.push({ type: "subheading", text });
+        } else {
+          blocks.push({ type: "paragraph", text });
+        }
         break;
+      }
 
       case "list":
         blocks.push({
