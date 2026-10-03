@@ -3,6 +3,7 @@ import type { Root } from "mdast";
 export type Block =
   | { type: "heading"; level: number; text: string }
   | { type: "subheading"; text: string }
+  | { type: "signature"; text: string }
   | { type: "paragraph"; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "table"; headers: string[]; rows: string[][] }
@@ -20,6 +21,12 @@ function flattenText(node: any): string {
  * a field label ("**To:**", "**Date:**") that stays inline with what
  * follows it, so only the colon-less case is treated as a subheading.
  */
+function isSignatureText(text: string): boolean {
+  const value = text.trim();
+  return /^(?:deponent|signature|signed(?:\s+by)?)\s*:?\s*$/i.test(value) ||
+    /^(?:deponent|signature|signed(?:\s+by)?)\s*[:\-]\s*.+$/i.test(value);
+}
+
 function isSectionTitleParagraph(node: any, text: string): boolean {
   return (
     node.children &&
@@ -38,13 +45,21 @@ export function toIR(ast: Root): Block[] {
 
   for (const node of ast.children as any[]) {
     switch (node.type) {
-      case "heading":
-        blocks.push({ type: "heading", level: node.depth, text: flattenText(node) });
+      case "heading": {
+        const text = flattenText(node);
+        if (isSignatureText(text)) {
+          blocks.push({ type: "signature", text });
+        } else {
+          blocks.push({ type: "heading", level: node.depth, text });
+        }
         break;
+      }
 
       case "paragraph": {
         const text = flattenText(node);
-        if (isSectionTitleParagraph(node, text)) {
+        if (isSignatureText(text)) {
+          blocks.push({ type: "signature", text });
+        } else if (isSectionTitleParagraph(node, text)) {
           blocks.push({ type: "subheading", text });
         } else {
           blocks.push({ type: "paragraph", text });
