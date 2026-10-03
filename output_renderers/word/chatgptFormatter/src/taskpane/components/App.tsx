@@ -1,13 +1,9 @@
 import * as React from "react";
 
-import Header from "./Header";
 import { makeStyles } from "@fluentui/react-components";
 
 import FormatText from "./FormatText";
 
-interface AppProps {
-  title: string;
-}
 
 const useStyles = makeStyles({
   root: {
@@ -15,16 +11,11 @@ const useStyles = makeStyles({
   },
 });
 
-const App: React.FC<AppProps> = (props: AppProps) => {
+const App: React.FC = () => {
   const styles = useStyles();
 
   return (
     <div className={styles.root}>
-      <Header
-        logo="assets/logo-filled.png"
-        title={props.title}
-        message="Welcome"
-      />
 
       <FormatText />
     </div>

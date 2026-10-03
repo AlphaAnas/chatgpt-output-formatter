@@ -120,6 +120,12 @@ function isRunBold(r: Element): boolean {
  * ("To:", "Date:") that stays inline with what follows it, so only the
  * colon-less case is treated as a subheading.
  */
+function isSignatureText(text: string): boolean {
+  const value = text.trim();
+  return /^(?:deponent|signature|signed(?:\s+by)?)\s*:?\s*$/i.test(value) ||
+    /^(?:deponent|signature|signed(?:\s+by)?)\s*[:\-]\s*.+$/i.test(value);
+}
+
 function isSectionTitleParagraph(p: Element, text: string): boolean {
   if (!text || text.trim().endsWith(":")) return false;
   const runs = childrenNS(p, "r").filter((r) => paragraphText(r) !== "");
@@ -206,6 +212,12 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
       const headingLevel = headingLevelFromStyle(styleId);
       const text = paragraphText(el);
 
+      if (isSignatureText(text)) {
+        flushList();
+        blocks.push({ type: "signature", text });
+        continue;
+      }
+
       if (headingLevel) {
         flushList();
         if (text) blocks.push({ type: "heading", level: headingLevel, text });
@@ -251,5 +263,11 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
  */
 export function ooxmlHasWordStructure(ooxml: string): boolean {
   if (!ooxml) return false;
-  return /w:pStyle[^>]*w:val="Heading\d"/i.test(ooxml) || /w:numPr/i.test(ooxml) || /<w:tbl[ >]/i.test(ooxml);
+  return (
+    /w:pStyle[^>]*w:val="Heading\d"/i.test(ooxml) ||
+    /w:numPr/i.test(ooxml) ||
+    /<w:tbl[ >]/i.test(ooxml) ||
+    /<w:b\b/i.test(ooxml) ||
+    /\b(?:deponent|signature)\b/i.test(ooxml)
+  );
 }

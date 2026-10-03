@@ -32,6 +32,17 @@ function subHeadingStyle(t: FormatTemplate): string {
   });
 }
 
+function signatureStyle(t: FormatTemplate): string {
+  return styleString({
+    "font-family": `'${t.signatureFont}', serif`,
+    "font-size": t.signatureSize,
+    "text-align": t.signatureAlign,
+    "font-weight": t.signatureBold ? "bold" : "normal",
+    "margin-bottom": t.bodySpaceAfter,
+    color: TEXT_COLOR,
+  });
+}
+
 function paragraphStyle(t: FormatTemplate): string {
   return styleString({
     "font-family": `'${t.bodyFont}', serif`,
@@ -47,7 +58,17 @@ function listItemStyle(t: FormatTemplate): string {
   return styleString({
     "font-family": `'${t.listFont}', serif`,
     "font-size": t.listSize,
+    "text-align": t.bodyAlign,
     "margin-bottom": "3pt",
+    color: TEXT_COLOR,
+  });
+}
+
+function tableCellStyle(t: FormatTemplate): string {
+  return styleString({
+    "font-family": `'${t.bodyFont}', serif`,
+    "font-size": t.bodySize,
+    "text-align": t.bodyAlign,
     color: TEXT_COLOR,
   });
 }
@@ -60,6 +81,8 @@ export function renderHTML(blocks: Block[], template: FormatTemplate): string {
       out.push(`<h${block.level} style="${headingStyle(template)}">${block.text}</h${block.level}>`);
     } else if (block.type === "subheading") {
       out.push(`<p style="${subHeadingStyle(template)}">${block.text}</p>`);
+    } else if (block.type === "signature") {
+      out.push(`<p style="${signatureStyle(template)}">${block.text}</p>`);
     } else if (block.type === "paragraph") {
       out.push(`<p style="${paragraphStyle(template)}">${block.text}</p>`);
     } else if (block.type === "list") {
@@ -68,7 +91,7 @@ export function renderHTML(blocks: Block[], template: FormatTemplate): string {
       const items = block.items.map((i) => `<li style="${style}">${i}</li>`).join("");
       out.push(`<${tag} style="padding-left: 20pt;">${items}</${tag}>`);
     } else if (block.type === "table") {
-      const cellStyle = `color:${TEXT_COLOR};`;
+      const cellStyle = tableCellStyle(template);
       const head = `<tr>${block.headers.map((h) => `<th style="${cellStyle}">${h}</th>`).join("")}</tr>`;
       const rows = block.rows
         .map((r) => `<tr>${r.map((c) => `<td style="${cellStyle}">${c}</td>`).join("")}</tr>`)
