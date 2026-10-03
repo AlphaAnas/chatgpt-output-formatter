@@ -2,3 +2,5 @@ node_modules/
 dist/
 **/dist/
 .vscode/
+start-word-online.ps1
+*.png

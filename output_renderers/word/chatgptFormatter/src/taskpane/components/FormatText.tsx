@@ -9,6 +9,8 @@ import {
 import {
   processContent,
   templates,
+  ooxmlToBlocks,
+  ooxmlHasWordStructure,
 } from "chatgpt_formatter_lib/index";
 
 import { insertHtml } from "../taskpane";
@@ -64,9 +66,10 @@ const FormatText: React.FC = () => {
     try {
       console.log("Getting input from Word...");
 
-      const { text, hasSelection } = await getInputText();
+      const { text, ooxml, hasSelection } = await getInputText();
 
       console.log("Text received:", text);
+      console.log("OOXML received:", ooxml);
       console.log("Has selection:", hasSelection);
 
       if (!text.trim()) {
@@ -74,9 +77,16 @@ const FormatText: React.FC = () => {
         return;
       }
 
-      const blocks = processContent(text);
+      // Word Online converts pasted Markdown into real Word styles
+      // (headings, lists, tables) before we ever read `.text`. When that
+      // structure is present, trust it instead of re-parsing already
+      // Word-formatted text as Markdown.
+      const useWordStructure = ooxmlHasWordStructure(ooxml);
+      console.log("Using Word OOXML structure:", useWordStructure);
 
-      if (!blocks) {
+      const blocks = useWordStructure ? ooxmlToBlocks(ooxml) : processContent(text);
+
+      if (!blocks || blocks.length === 0) {
         throw new Error("No content could be processed.");
       }
 
