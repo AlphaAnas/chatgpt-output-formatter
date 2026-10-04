@@ -39,6 +39,8 @@
     "unified": "^11.0.5"
   },
   "devDependencies": {
+    "@types/mdast": "^4.0.0",
+    "@types/node": "^20.19.43",
     "@babel/core": "^8.0.1",
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-typescript": "^8.0.1",
