@@ -39,11 +39,11 @@
     "unified": "^11.0.5"
   },
   "devDependencies": {
-    "@types/mdast": "^4.0.0",
-    "@types/node": "^20.19.43",
     "@babel/core": "^8.0.1",
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-typescript": "^8.0.1",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^20.19.43",
     "@types/office-js": "^1.0.609",
     "@types/office-runtime": "^1.0.35",
     "@types/react": "^18.2.64",
@@ -59,6 +59,7 @@
     "html-webpack-plugin": "^5.6.0",
     "less": "^4.2.0",
     "less-loader": "^12.2.0",
+    "mdast": "^2.3.2",
     "office-addin-cli": "^2.0.10",
     "office-addin-debugging": "^6.1.2",
     "office-addin-dev-certs": "^2.0.10",
