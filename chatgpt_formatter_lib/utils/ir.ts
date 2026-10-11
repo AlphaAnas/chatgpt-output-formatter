@@ -23,8 +23,20 @@ function flattenText(node: any): string {
  */
 function isSignatureText(text: string): boolean {
   const value = text.trim();
-  return /^(?:deponent|signature|signed(?:\s+by)?)\s*:?\s*$/i.test(value) ||
-    /^(?:deponent|signature|signed(?:\s+by)?)\s*[:\-]\s*.+$/i.test(value);
+  // Matches lines like: "Signature", "Signature:", "Signature,", "Deponent: Ali"
+  // Keywords: deponent, signature, signed (by), sincerely, advocate
+  return /^(?:deponent|signature|signed(?:\s+by)?|sincerely|advocate)\b[\s:,\-]*/i.test(value);
+}
+
+/**
+ * Short label:value lines immediately after a signature keyword line,
+ * e.g. "Name: Ali", "CNIC: 12345-…", "Contact: 0300-…".
+ * Only active when inSignatureSection is true.
+ */
+function isSignatureContinuation(text: string): boolean {
+  const value = text.trim();
+  // "Label: value" pattern, short enough to be a field, not a body sentence
+  return value.length <= 120 && /^[^:\n]{1,40}:.+$/.test(value);
 }
 
 function isSectionTitleParagraph(node: any, text: string): boolean {
@@ -42,12 +54,15 @@ function isSectionTitleParagraph(node: any, text: string): boolean {
  */
 export function toIR(ast: Root): Block[] {
   const blocks: Block[] = [];
+  let inSignatureSection = false;
 
   for (const node of ast.children as any[]) {
     switch (node.type) {
       case "heading": {
         const text = flattenText(node);
+        inSignatureSection = false;
         if (isSignatureText(text)) {
+          inSignatureSection = true;
           blocks.push({ type: "signature", text });
         } else {
           blocks.push({ type: "heading", level: node.depth, text });
@@ -58,16 +73,23 @@ export function toIR(ast: Root): Block[] {
       case "paragraph": {
         const text = flattenText(node);
         if (isSignatureText(text)) {
+          inSignatureSection = true;
+          blocks.push({ type: "signature", text });
+        } else if (inSignatureSection && isSignatureContinuation(text)) {
+          // Name, CNIC, Contact — keep signature alignment
           blocks.push({ type: "signature", text });
         } else if (isSectionTitleParagraph(node, text)) {
+          inSignatureSection = false;
           blocks.push({ type: "subheading", text });
         } else {
+          inSignatureSection = false;
           blocks.push({ type: "paragraph", text });
         }
         break;
       }
 
       case "list":
+        inSignatureSection = false;
         blocks.push({
           type: "list",
           ordered: Boolean(node.ordered),
@@ -76,6 +98,7 @@ export function toIR(ast: Root): Block[] {
         break;
 
       case "table": {
+        inSignatureSection = false;
         const [headerRow, ...bodyRows] = node.children;
         blocks.push({
           type: "table",
