@@ -1,12 +1,6 @@
 import * as React from "react";
-import { useState } from "react";
-import {
-  Button,
-  makeStyles,
-  Radio,
-  RadioGroup,
-  Text,
-} from "@fluentui/react-components";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Text, makeStyles } from "@fluentui/react-components";
 
 import {
   ooxmlHasWordStructure,
@@ -14,35 +8,49 @@ import {
   processContent,
   templates,
 } from "chatgpt_formatter_lib/index";
-import type { AffidavitSettings, TextAlignment } from "chatgpt_formatter_lib/index";
+import type { AffidavitSettings } from "chatgpt_formatter_lib/index";
 
 import { insertHtml } from "../taskpane";
 import { getInputText } from "./takeInput";
 
-interface EditableSettings extends Omit<AffidavitSettings, "bodySizePt" | "headingSizePt"> {
-  bodySizePt: string;
-  headingSizePt: string;
+import SettingsFields from "./templates/SettingsFields";
+import TemplateForm from "./templates/TemplateForm";
+import TemplatesScreen from "./templates/TemplatesScreen";
+import { loadCustomTemplates, saveCustomTemplates } from "./templates/templateStorage";
+import {
+  parseEditableSettings,
+  toEditableSettings,
+  type EditableSettings,
+  type SavedTemplate,
+} from "./templates/templateTypes";
+
+const BUILT_IN_TEMPLATE_ID = "builtin-affidavit";
+
+function buildBuiltInTemplate(): SavedTemplate {
+  return {
+    id: BUILT_IN_TEMPLATE_ID,
+    name: "Affidavit template",
+    isBuiltIn: true,
+    settings: templates.getAffidavitDefaults(),
+  };
 }
 
-const alignmentOptions: { value: TextAlignment; label: string }[] = [
-  { value: "left", label: "Left" },
-  { value: "center", label: "Centered" },
-  { value: "right", label: "Right" },
-  { value: "justify", label: "Justified" },
-];
-
-function getDefaultFormSettings(): EditableSettings {
-  const defaults = templates.getAffidavitDefaults();
-  return {
-    ...defaults,
-    bodySizePt: String(defaults.bodySizePt),
-    headingSizePt: String(defaults.headingSizePt),
-  };
+function createTemplateId(): string {
+  return `tpl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function hasMarkdownSyntax(text: string): boolean {
   return /(^|\n)\s{0,3}(?:#{1,6}\s|[-*+]\s|\d+\.\s)|\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`/m.test(text);
 }
+
+function alignLabel(align: string): string {
+  if (align === "center") return "centered";
+  if (align === "right") return "right-aligned";
+  if (align === "justify") return "justified";
+  return "left-aligned";
+}
+
+type View = "format" | "templates" | "create" | "edit";
 
 const useStyles = makeStyles({
   container: {
@@ -55,66 +63,39 @@ const useStyles = makeStyles({
     color: "#000000",
     backgroundColor: "#FFFFFF",
   },
-
-  templateSection: {
+  templateRow: {
+    boxSizing: "border-box",
     display: "flex",
-    flexDirection: "column",
-    gap: "7px",
-  },
-
-  templateChoice: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    width: "100%",
     border: "1px solid #185ABD",
     borderLeftWidth: "3px",
     borderRadius: "3px",
     padding: "8px 9px",
     backgroundColor: "#F7F9FC",
+    cursor: "pointer",
+    textAlign: "left",
   },
-  templateDescription: {
-    display: "block",
-    color: "#59636E",
-    fontSize: "11px",
-    lineHeight: "15px",
-    paddingLeft: "26px",
-  },
-  settingsSection: {
+  templateRowText: {
     display: "flex",
     flexDirection: "column",
-    gap: "9px",
-    borderTop: "1px solid #D9DEE5",
-    paddingTop: "11px",
+    gap: "2px",
+    minWidth: 0,
   },
-  settingsHeading: {
+  templateName: {
     fontSize: "13px",
     fontWeight: 600,
   },
-  settingRow: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) minmax(118px, 1.15fr)",
-    alignItems: "center",
-    gap: "8px",
-    minHeight: "32px",
+  templateSummary: {
+    fontSize: "11px",
+    color: "#59636E",
   },
-  settingLabel: {
-    fontSize: "12px",
-    lineHeight: "16px",
-  },
-  control: {
-    boxSizing: "border-box",
-    width: "100%",
-    minWidth: 0,
-    minHeight: "30px",
-    border: "1px solid #8A8886",
-    borderRadius: "2px",
-    padding: "4px 7px",
-    color: "#000000",
-    backgroundColor: "#FFFFFF",
-    fontFamily: "inherit",
-    fontSize: "12px",
-    outlineColor: "#185ABD",
-    "&:focus-visible": {
-      outline: "2px solid #185ABD",
-      outlineOffset: "1px",
-    },
+  chevron: {
+    fontSize: "16px",
+    color: "#59636E",
+    flexShrink: 0,
   },
   resetButton: {
     alignSelf: "flex-start",
@@ -147,10 +128,25 @@ const useStyles = makeStyles({
 
 const FormatText: React.FC = () => {
   const styles = useStyles();
-  const [selectedTemplate, setSelectedTemplate] = useState("affidavit");
-  const [settings, setSettings] = useState<EditableSettings>(getDefaultFormSettings);
+
+  const [view, setView] = useState<View>("format");
+  const [returnView, setReturnView] = useState<View>("format");
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+
+  const builtInTemplate = useMemo(() => buildBuiltInTemplate(), []);
+  const [customTemplates, setCustomTemplates] = useState<SavedTemplate[]>(() => loadCustomTemplates());
+  const allTemplates = useMemo(() => [builtInTemplate, ...customTemplates], [builtInTemplate, customTemplates]);
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState(BUILT_IN_TEMPLATE_ID);
+  const [settings, setSettings] = useState<EditableSettings>(() => toEditableSettings(builtInTemplate.settings));
   const [error, setError] = useState("");
   const [isFormatting, setIsFormatting] = useState(false);
+
+  useEffect(() => {
+    saveCustomTemplates(customTemplates);
+  }, [customTemplates]);
+
+  const activeTemplate = allTemplates.find((t) => t.id === selectedTemplateId) ?? builtInTemplate;
 
   const updateSetting = <K extends keyof EditableSettings,>(key: K, value: EditableSettings[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -158,19 +154,61 @@ const FormatText: React.FC = () => {
   };
 
   const resetSettings = () => {
-    setSettings(getDefaultFormSettings());
+    setSettings(toEditableSettings(activeTemplate.settings));
     setError("");
+  };
+
+  const selectTemplate = (id: string) => {
+    const found = allTemplates.find((t) => t.id === id);
+    if (!found) return;
+    setSelectedTemplateId(id);
+    setSettings(toEditableSettings(found.settings));
+    setView("format");
+  };
+
+  const openCreateFromSettings = () => {
+    setReturnView("format");
+    setEditingTemplateId(null);
+    setView("create");
+  };
+
+  const openCreateFromTemplates = () => {
+    setReturnView("templates");
+    setEditingTemplateId(null);
+    setView("create");
+  };
+
+  const openEdit = (id: string) => {
+    setReturnView("templates");
+    setEditingTemplateId(id);
+    setView("edit");
+  };
+
+  const handleSaveTemplate = (name: string, parsedSettings: AffidavitSettings) => {
+    if (editingTemplateId) {
+      setCustomTemplates((current) =>
+        current.map((t) => (t.id === editingTemplateId ? { ...t, name, settings: parsedSettings } : t))
+      );
+      setSelectedTemplateId(editingTemplateId);
+    } else {
+      const id = createTemplateId();
+      setCustomTemplates((current) => [...current, { id, name, isBuiltIn: false, settings: parsedSettings }]);
+      setSelectedTemplateId(id);
+    }
+    setSettings(toEditableSettings(parsedSettings));
+    setError("");
+    setView("format");
+  };
+
+  const handleCancelForm = () => {
+    setView(returnView);
   };
 
   const handleFormat = async () => {
     setError("");
 
-    const bodySizePt = Number(settings.bodySizePt);
-    const headingSizePt = Number(settings.headingSizePt);
-    if (
-      !Number.isFinite(bodySizePt) || bodySizePt < 6 || bodySizePt > 72 ||
-      !Number.isFinite(headingSizePt) || headingSizePt < 6 || headingSizePt > 72
-    ) {
+    const parsedSettings = parseEditableSettings(settings);
+    if (!parsedSettings) {
       setError("Enter font sizes from 6 to 72 pt.");
       return;
     }
@@ -199,20 +237,7 @@ const FormatText: React.FC = () => {
         return;
       }
 
-      if (selectedTemplate !== "affidavit") {
-        setError("Select a template before applying formatting.");
-        return;
-      }
-
-      const templateSettings: AffidavitSettings = {
-        fontFamily: settings.fontFamily,
-        bodySizePt,
-        paragraphAlign: settings.paragraphAlign,
-        headingSizePt,
-        headingAlign: settings.headingAlign,
-        signatureAlign: settings.signatureAlign,
-      };
-      const html = templates.affidavitTemplate(blocks, templateSettings);
+      const html = templates.affidavitTemplate(blocks, parsedSettings);
       console.log("Formatted HTML:", html);
 
       await insertHtml(html, hasSelection);
@@ -225,121 +250,57 @@ const FormatText: React.FC = () => {
     }
   };
 
+  if (view === "templates") {
+    return (
+      <div className={styles.container}>
+        <TemplatesScreen
+          templates={allTemplates}
+          selectedId={selectedTemplateId}
+          onBack={() => setView("format")}
+          onSelect={selectTemplate}
+          onEdit={openEdit}
+          onCreateNew={openCreateFromTemplates}
+        />
+      </div>
+    );
+  }
+
+  if (view === "create" || view === "edit") {
+    const editingTemplate = editingTemplateId ? allTemplates.find((t) => t.id === editingTemplateId) : null;
+    return (
+      <div className={styles.container}>
+        <TemplateForm
+          title={view === "edit" ? "Edit template" : "Create template"}
+          initialName={editingTemplate ? editingTemplate.name : ""}
+          initialSettings={editingTemplate ? toEditableSettings(editingTemplate.settings) : settings}
+          onCancel={handleCancelForm}
+          onSave={handleSaveTemplate}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      <section className={styles.templateSection}>
-        <div className={styles.templateChoice}>
-          <RadioGroup
-            aria-label="Choose a template"
-            value={selectedTemplate}
-            onChange={(_, data) => setSelectedTemplate(data.value)}
-          >
-            <Radio value="affidavit" label="Affidavit template" />
-          </RadioGroup>
-          <Text className={styles.templateDescription}>
-            Times New Roman · 14 pt body · centered headings
+      <button type="button" className={styles.templateRow} onClick={() => setView("templates")}>
+        <span className={styles.templateRowText}>
+          <Text className={styles.templateName}>{activeTemplate.name}</Text>
+          <Text className={styles.templateSummary}>
+            {activeTemplate.settings.fontFamily} · {activeTemplate.settings.bodySizePt}pt ·{" "}
+            {alignLabel(activeTemplate.settings.headingAlign)} headings
           </Text>
-        </div>
-      </section>
+        </span>
+        <span className={styles.chevron} aria-hidden="true">›</span>
+      </button>
 
-      <section className={styles.settingsSection} aria-labelledby="document-settings-heading">
-        <Text id="document-settings-heading" className={styles.settingsHeading}>Document</Text>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="font-family">Font</label>
-          <select
-            id="font-family"
-            className={styles.control}
-            value={settings.fontFamily}
-            onChange={(event) => updateSetting("fontFamily", event.currentTarget.value)}
-          >
-            <option>Times New Roman</option>
-            <option>Arial</option>
-            <option>Calibri</option>
-            <option>Georgia</option>
-          </select>
-        </div>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="body-size">Body size</label>
-          <input
-            id="body-size"
-            className={styles.control}
-            type="number"
-            min="6"
-            max="72"
-            step="1"
-            value={settings.bodySizePt}
-            onChange={(event) => updateSetting("bodySizePt", event.currentTarget.value)}
-          />
-        </div>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="paragraph-alignment">Paragraph alignment</label>
-          <select
-            id="paragraph-alignment"
-            className={styles.control}
-            value={settings.paragraphAlign}
-            onChange={(event) => updateSetting("paragraphAlign", event.currentTarget.value as TextAlignment)}
-          >
-            {alignmentOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-      </section>
+      <SettingsFields settings={settings} onChange={updateSetting} idPrefix="format" />
 
-      <section className={styles.settingsSection} aria-labelledby="heading-settings-heading">
-        <Text id="heading-settings-heading" className={styles.settingsHeading}>Headings</Text>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="heading-size">Heading size</label>
-          <input
-            id="heading-size"
-            className={styles.control}
-            type="number"
-            min="6"
-            max="72"
-            step="1"
-            value={settings.headingSizePt}
-            onChange={(event) => updateSetting("headingSizePt", event.currentTarget.value)}
-          />
-        </div>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="heading-alignment">Alignment</label>
-          <select
-            id="heading-alignment"
-            className={styles.control}
-            value={settings.headingAlign}
-            onChange={(event) => updateSetting("headingAlign", event.currentTarget.value as TextAlignment)}
-          >
-            {alignmentOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      <section className={styles.settingsSection} aria-labelledby="signature-settings-heading">
-        <Text id="signature-settings-heading" className={styles.settingsHeading}>Signature</Text>
-        <div className={styles.settingRow}>
-          <label className={styles.settingLabel} htmlFor="signature-alignment">Alignment</label>
-          <select
-            id="signature-alignment"
-            className={styles.control}
-            value={settings.signatureAlign}
-            onChange={(event) => updateSetting("signatureAlign", event.currentTarget.value as TextAlignment)}
-          >
-            {alignmentOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      <Button
-        appearance="subtle"
-        size="small"
-        className={styles.resetButton}
-        onClick={resetSettings}
-      >
+      <Button appearance="subtle" size="small" className={styles.resetButton} onClick={resetSettings}>
         Reset to template defaults
+      </Button>
+
+      <Button appearance="subtle" size="small" className={styles.resetButton} onClick={openCreateFromSettings}>
+        Save current settings as a new template
       </Button>
 
       <Text className={styles.instruction}>

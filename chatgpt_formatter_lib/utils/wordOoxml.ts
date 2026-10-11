@@ -122,8 +122,17 @@ function isRunBold(r: Element): boolean {
  */
 function isSignatureText(text: string): boolean {
   const value = text.trim();
-  return /^(?:deponent|signature|signed(?:\s+by)?)\s*:?\s*$/i.test(value) ||
-    /^(?:deponent|signature|signed(?:\s+by)?)\s*[:\-]\s*.+$/i.test(value);
+  // Matches: "Signature", "Signature:", "Signature,", "Deponent: Ali", "Advocate"
+  return /^(?:deponent|signature|signed(?:\s+by)?|sincerely|advocate)\b[\s:,\-]*/i.test(value);
+}
+
+/**
+ * Short label:value lines immediately after a signature keyword line.
+ * e.g. "Name: Ali", "CNIC: 12345-…", "Contact: 0300-…".
+ */
+function isSignatureContinuation(text: string): boolean {
+  const value = text.trim();
+  return value.length <= 120 && /^[^:\n]{1,40}:.+$/.test(value);
 }
 
 function isSectionTitleParagraph(p: Element, text: string): boolean {
@@ -192,6 +201,7 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
 
   let pendingListItems: string[] = [];
   let pendingListOrdered = true;
+  let inSignatureSection = false;
 
   const flushList = () => {
     if (pendingListItems.length > 0) {
@@ -214,12 +224,14 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
 
       if (isSignatureText(text)) {
         flushList();
+        inSignatureSection = true;
         blocks.push({ type: "signature", text });
         continue;
       }
 
       if (headingLevel) {
         flushList();
+        inSignatureSection = false;
         if (text) blocks.push({ type: "heading", level: headingLevel, text });
         continue;
       }
@@ -227,6 +239,7 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
       const numId = getNumId(el);
       if (numId) {
         if (!text) continue;
+        inSignatureSection = false;
         const numFmt = numbering.numFmtByNumId.get(numId);
         const ordered = numFmt ? numFmt !== "bullet" : true;
 
@@ -241,13 +254,19 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
       flushList();
       if (!text) continue;
 
-      if (isSectionTitleParagraph(el, text)) {
+      if (inSignatureSection && isSignatureContinuation(text)) {
+        // Name, CNIC, Contact lines — keep signature alignment
+        blocks.push({ type: "signature", text });
+      } else if (isSectionTitleParagraph(el, text)) {
+        inSignatureSection = false;
         blocks.push({ type: "subheading", text });
       } else {
+        inSignatureSection = false;
         blocks.push({ type: "paragraph", text });
       }
     } else if (el.localName === "tbl") {
       flushList();
+      inSignatureSection = false;
       blocks.push(tableToBlock(el));
     }
   }
