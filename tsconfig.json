@@ -13,5 +13,9 @@
     "main.ts",
     "input_processors/**/*.ts",
     "output_renderers/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "output_renderers/word"
   ]
 }

@@ -3,4 +3,5 @@ dist/
 **/dist/
 .vscode/
 start-word-online.ps1
+manifest.local.generated.xml
 *.png
