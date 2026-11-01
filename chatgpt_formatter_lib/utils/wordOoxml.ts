@@ -1,4 +1,6 @@
 import type { Block } from "./ir";
+// import fs from "fs"; 
+
 
 /**
  * Converts Word's own OOXML (from Word.Range.getOoxml() / Word.Body.getOoxml())
@@ -90,6 +92,10 @@ function paragraphText(p: Element): string {
   return text.trim();
 }
 
+/**
+ * 
+ * this function checks the styleId to determine the heading level (1-6)
+ */
 function headingLevelFromStyle(styleId: string | null): number | null {
   if (!styleId) return null;
   if (/^Title$/i.test(styleId)) return 1;
@@ -124,15 +130,6 @@ function isSignatureText(text: string): boolean {
   const value = text.trim();
   // Matches: "Signature", "Signature:", "Signature,", "Deponent: Ali", "Advocate"
   return /^(?:deponent|signature|signed(?:\s+by)?|sincerely|advocate)\b[\s:,\-]*/i.test(value);
-}
-
-/**
- * Short label:value lines immediately after a signature keyword line.
- * e.g. "Name: Ali", "CNIC: 12345-…", "Contact: 0300-…".
- */
-function isSignatureContinuation(text: string): boolean {
-  const value = text.trim();
-  return value.length <= 120 && /^[^:\n]{1,40}:.+$/.test(value);
 }
 
 function isSectionTitleParagraph(p: Element, text: string): boolean {
@@ -184,10 +181,16 @@ function tableToBlock(tbl: Element): Block {
   const [headers, ...bodyRows] = rows;
   return { type: "table", headers: headers || [], rows: bodyRows };
 }
-
+/**
+ * 
+ * function to convert MSWORD xml format to a list of blocks i.e. IR representation
+ * IR = Intermediate Representation:  a structured representation of the document
+ */
 export function ooxmlToBlocks(ooxml: string): Block[] {
   const doc = new DOMParser().parseFromString(ooxml, "application/xml");
+  // for debugging store parsed xml in a file named test 
 
+  // fs.writeFileSync("test.xml", ooxml);
   const parserError = doc.getElementsByTagName("parsererror")[0];
   if (parserError) {
     throw new Error("Failed to parse Word OOXML: " + parserError.textContent);
@@ -212,14 +215,14 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
 
   for (let i = 0; i < body.childNodes.length; i++) {
     const node = body.childNodes[i];
-    if (node.nodeType !== 1) continue;
+    if (node.nodeType !== 1) continue; // skip if it is not an element
     const el = node as Element;
-    if (el.namespaceURI !== W_NS) continue;
+    if (el.namespaceURI !== W_NS) continue; // skip if it is not a Word element
 
-    if (el.localName === "p") {
+    if (el.localName === "p") { // paragraph
       const pPr = firstChildNS(el, "pPr");
       const styleId = attrVal(firstChildNS(pPr, "pStyle"));
-      const headingLevel = headingLevelFromStyle(styleId);
+      const headingLevel = headingLevelFromStyle(styleId); 
       const text = paragraphText(el);
 
       if (isSignatureText(text)) {
@@ -254,14 +257,14 @@ export function ooxmlToBlocks(ooxml: string): Block[] {
       flushList();
       if (!text) continue;
 
-      if (inSignatureSection && isSignatureContinuation(text)) {
-        // Name, CNIC, Contact lines — keep signature alignment
+      if (inSignatureSection) {
+        // Everything following a signature/closing cue (name, address,
+        // contact number, the signature line itself, etc.) stays part of
+        // the same signature block until a heading/list/table ends it.
         blocks.push({ type: "signature", text });
       } else if (isSectionTitleParagraph(el, text)) {
-        inSignatureSection = false;
         blocks.push({ type: "subheading", text });
       } else {
-        inSignatureSection = false;
         blocks.push({ type: "paragraph", text });
       }
     } else if (el.localName === "tbl") {
