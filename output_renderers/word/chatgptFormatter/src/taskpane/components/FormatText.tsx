@@ -93,7 +93,7 @@ const useStyles = makeStyles({
     color: "#59636E",
   },
   chevron: {
-    fontSize: "16px",
+    fontSize: "12px",
     color: "#59636E",
     flexShrink: 0,
   },
@@ -290,7 +290,7 @@ const FormatText: React.FC = () => {
             {alignLabel(activeTemplate.settings.headingAlign)} headings
           </Text>
         </span>
-        <span className={styles.chevron} aria-hidden="true">›</span>
+        <span className={styles.chevron} aria-hidden="true">View More ›</span>
       </button>
 
       <SettingsFields settings={settings} onChange={updateSetting} idPrefix="format" />

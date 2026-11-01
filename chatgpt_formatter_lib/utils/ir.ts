@@ -28,17 +28,6 @@ function isSignatureText(text: string): boolean {
   return /^(?:deponent|signature|signed(?:\s+by)?|sincerely|advocate)\b[\s:,\-]*/i.test(value);
 }
 
-/**
- * Short label:value lines immediately after a signature keyword line,
- * e.g. "Name: Ali", "CNIC: 12345-…", "Contact: 0300-…".
- * Only active when inSignatureSection is true.
- */
-function isSignatureContinuation(text: string): boolean {
-  const value = text.trim();
-  // "Label: value" pattern, short enough to be a field, not a body sentence
-  return value.length <= 120 && /^[^:\n]{1,40}:.+$/.test(value);
-}
-
 function isSectionTitleParagraph(node: any, text: string): boolean {
   return (
     node.children &&
@@ -74,15 +63,15 @@ export function toIR(ast: Root): Block[] {
         const text = flattenText(node);
         if (isSignatureText(text)) {
           inSignatureSection = true;
-          blocks.push({ type: "signature", text });
-        } else if (inSignatureSection && isSignatureContinuation(text)) {
-          // Name, CNIC, Contact — keep signature alignment
-          blocks.push({ type: "signature", text });
+          if (text) blocks.push({ type: "signature", text });
+        } else if (inSignatureSection) {
+          // Everything following a signature/closing cue (name, address,
+          // contact number, the signature line itself, etc.) stays part of
+          // the same signature block until a heading/list/table ends it.
+          if (text) blocks.push({ type: "signature", text });
         } else if (isSectionTitleParagraph(node, text)) {
-          inSignatureSection = false;
           blocks.push({ type: "subheading", text });
         } else {
-          inSignatureSection = false;
           blocks.push({ type: "paragraph", text });
         }
         break;
